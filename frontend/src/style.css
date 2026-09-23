@@ -1,0 +1,121 @@
+/* Paleta inspirada en una biblioteca: tinta, papel, verde de encuadernación y sello de fecha. */
+:root {
+  --tinta: #1c2b36;
+  --papel: #f7f8f5;
+  --blanco: #ffffff;
+  --verde: #2f5d50;
+  --verde-claro: #e3ece8;
+  --sello: #a8741a;
+  --rojo: #b3261e;
+  --gris: #5d6b75;
+  --linea: #d5dbd8;
+  --serif: "Literata", Georgia, serif;
+  --sans: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font: 1rem/1.55 var(--sans);
+}
+
+a { color: var(--verde); }
+
+h1, h2 { font-family: var(--serif); line-height: 1.2; }
+h1 { font-size: 2rem; margin: 0 0 1.25rem; }
+h2 { font-size: 1.15rem; margin: 0 0 0.25rem; }
+
+.barra {
+  display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
+  padding: 0.9rem 1.5rem; background: var(--verde); color: var(--blanco);
+}
+.barra a, .barra .enlace { color: var(--blanco); text-decoration: none; }
+.marca { font-family: var(--serif); font-size: 1.35rem; font-weight: 700; }
+#menu { display: flex; flex-wrap: wrap; gap: 1.1rem; align-items: center; }
+#menu a:hover { text-decoration: underline; }
+.quien { opacity: 0.8; }
+
+main { max-width: 1040px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+/* Formularios */
+label { display: block; margin-bottom: 0.9rem; font-weight: 700; font-size: 0.95rem; }
+input, select {
+  display: block; width: 100%; margin-top: 0.3rem; padding: 0.55rem 0.7rem;
+  font: inherit; font-weight: 400; color: var(--tinta);
+  background: var(--blanco); border: 1px solid var(--linea); border-radius: 4px;
+}
+button {
+  font: inherit; font-weight: 700; cursor: pointer;
+  padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid var(--verde);
+  background: var(--verde); color: var(--blanco);
+}
+button:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.secundario { background: var(--blanco); color: var(--verde); }
+button.peligro { background: var(--blanco); color: var(--rojo); border-color: var(--rojo); }
+button.enlace { background: none; border: none; padding: 0; font-weight: 400; }
+:focus-visible { outline: 3px solid var(--sello); outline-offset: 2px; }
+
+.tarjeta { background: var(--blanco); border: 1px solid var(--linea); border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; }
+.angosta { max-width: 420px; margin: 2rem auto; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 1rem; }
+.buscador { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+.buscador input { margin: 0; }
+.filtro { max-width: 380px; }
+
+/* Fichas: recuerdan las tarjetas de catálogo de una biblioteca */
+.fichas { list-style: none; padding: 0; display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.ficha {
+  position: relative; background: var(--blanco); border: 1px solid var(--linea);
+  border-left: 4px solid var(--verde); border-radius: 4px; padding: 1.1rem 1.1rem 1rem;
+}
+.ficha p { margin: 0.2rem 0; }
+.autor { color: var(--gris); }
+.isbn { font-size: 0.85rem; color: var(--gris); }
+.disponibles { margin-top: 0.6rem !important; font-weight: 700; color: var(--verde); }
+.disponibles.agotado { color: var(--rojo); }
+.ficha button { margin-top: 0.75rem; }
+.ficha dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0.6rem 0; font-size: 0.93rem; }
+.ficha dt { color: var(--gris); }
+.ficha dd { margin: 0; }
+.plazo { font-weight: 700; color: var(--sello); }
+.acciones { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* El sello: estado del préstamo como el sello de fecha de una biblioteca */
+.sello {
+  display: inline-block; padding: 0.1rem 0.55rem; border: 2px solid currentColor; border-radius: 3px;
+  font-weight: 700; font-size: 0.85rem; transform: rotate(-2deg); background: var(--blanco);
+}
+.ficha .sello { position: absolute; top: 0.9rem; right: 0.9rem; }
+.ficha:has(.sello) h2 { padding-right: 6.5rem; }
+.sello-solicitado { color: var(--gris); }
+.sello-activo, .sello-renovado { color: var(--verde); }
+.sello-vencido, .sello-rechazado { color: var(--rojo); }
+.sello-devuelto { color: var(--sello); }
+.sello-cancelado { color: var(--gris); text-decoration: line-through; }
+
+/* Tablas */
+.tabla-envoltura { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--blanco); border: 1px solid var(--linea); }
+th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th { background: var(--verde-claro); font-size: 0.9rem; }
+small { color: var(--gris); }
+
+/* Mensajes */
+.alerta { background: #fbeceb; border-left: 4px solid var(--rojo); padding: 0.8rem 1rem; }
+.vacio, .nota { color: var(--gris); }
+#aviso {
+  position: fixed; bottom: 1.25rem; left: 50%; transform: translate(-50%, 1rem);
+  max-width: min(90vw, 520px); padding: 0.8rem 1.2rem; border-radius: 4px;
+  background: var(--tinta); color: var(--blanco); opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+#aviso.visible { opacity: 1; transform: translate(-50%, 0); }
+#aviso.error { background: var(--rojo); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 600px) { h1 { font-size: 1.6rem; } .barra { padding: 0.8rem 1rem; } }

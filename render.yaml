@@ -1,0 +1,30 @@
+# Plano de despliegue para Render (Blueprint).
+# Crea dos servicios gratuitos: la API (Python) y el sitio web (estático).
+services:
+  - type: web
+    name: biblioumg-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /salud
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DATABASE_URL
+        sync: false   # pegar aquí la cadena de conexión de Neon
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false   # URL del sitio web, p. ej. https://biblioumg-web.onrender.com
+
+  - type: web
+    name: biblioumg-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false   # URL de la API, p. ej. https://biblioumg-api.onrender.com

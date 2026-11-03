@@ -1,0 +1,926 @@
+{
+  "info": {
+    "name": "BiblioUMG API",
+    "description": "Pruebas de API de BiblioUMG. Incluye el flujo completo de un préstamo (solicitar → entregar → renovar → devolver).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Salud de la API",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/salud",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "salud"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Contenido: estado ok\", () => pm.expect(pm.response.json().estado).to.eql(\"ok\"));",
+              "pm.test(\"Responde en menos de 2 s\", () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Login bibliotecario válido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"admin@biblioumg.com\", \"password\": \"Admin12345\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "const d = pm.response.json();",
+              "pm.test(\"Esquema: token y usuario\", () => pm.response.to.have.jsonSchema({type:\"object\",required:[\"token\",\"usuario\"],properties:{token:{type:\"string\"},usuario:{type:\"object\",required:[\"id\",\"rol\"]}}}));",
+              "pm.test(\"Rol BIBLIOTECARIO\", () => pm.expect(d.usuario.rol).to.eql(\"BIBLIOTECARIO\"));",
+              "pm.collectionVariables.set(\"tokenAdmin\", d.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Login con contraseña incorrecta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"admin@biblioumg.com\", \"password\": \"Incorrecta1\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Mensaje en español\", () => pm.expect(pm.response.json().detail).to.eql(\"Correo o contraseña incorrectos.\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Registro de estudiante nuevo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/registro",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "registro"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nombre\": \"Estudiante Newman\", \"carne\": \"{{carne}}\", \"email\": \"{{correo}}\", \"password\": \"Clave2026\", \"tipo\": \"ESTUDIANTE\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 201\", () => pm.response.to.have.status(201));",
+              "const d = pm.response.json();",
+              "pm.test(\"Esquema de usuario\", () => pm.response.to.have.jsonSchema({type:\"object\",required:[\"id\",\"nombre\",\"carne\",\"email\",\"tipo\",\"rol\",\"multa_pendiente\",\"bloqueado\"]}));",
+              "pm.test(\"Nace sin multa ni bloqueo\", () => { pm.expect(d.multa_pendiente).to.eql(0); pm.expect(d.bloqueado).to.eql(false); });",
+              "pm.test(\"No expone la contraseña\", () => pm.expect(d).to.not.have.property(\"password_hash\"));",
+              "pm.collectionVariables.set(\"usuarioId\", d.id);"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const n = Date.now().toString().slice(-6);",
+              "pm.collectionVariables.set(\"carne\", \"0901-26-\" + n);",
+              "pm.collectionVariables.set(\"correo\", \"newman\" + n + \"@prueba.com\");"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Registro con carné inválido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/registro",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "registro"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nombre\": \"Carlos Prueba\", \"carne\": \"0901-AB-12345\", \"email\": \"carlos.newman@prueba.com\", \"password\": \"Clave2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Indica el formato del carné\", () => pm.expect(JSON.stringify(pm.response.json())).to.include(\"0000-00-00000\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Registro con correo duplicado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/registro",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "registro"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nombre\": \"Otra Persona\", \"carne\": \"0901-26-999999\", \"email\": \"{{correo}}\", \"password\": \"Clave2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Mensaje de duplicado\", () => pm.expect(pm.response.json().detail).to.include(\"correo\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Login del estudiante nuevo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"{{correo}}\", \"password\": \"Clave2026\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"tokenEst\", pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Datos de la sesión (yo)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/yo",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "yo"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Es el usuario registrado\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"usuarioId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Catálogo completo",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/libros",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "libros"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "const libros = pm.response.json();",
+              "pm.test(\"Esquema: lista de libros\", () => pm.response.to.have.jsonSchema({type:\"array\",items:{type:\"object\",required:[\"id\",\"isbn\",\"titulo\",\"ejemplares_totales\",\"ejemplares_disponibles\"]}}));",
+              "pm.test(\"Disponibles nunca mayor que totales\", () => libros.forEach(l => pm.expect(l.ejemplares_disponibles).to.be.at.most(l.ejemplares_totales)));",
+              "const libre = libros.find(l => l.ejemplares_disponibles > 0);",
+              "pm.test(\"Hay un libro disponible\", () => pm.expect(libre).to.exist);",
+              "pm.collectionVariables.set(\"libroId\", libre.id);",
+              "pm.collectionVariables.set(\"disponiblesAntes\", libre.ejemplares_disponibles);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Búsqueda por autor",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/libros?q=Tzul",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "libros"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "Tzul"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Solo libros de ese autor\", () => pm.response.json().forEach(l => pm.expect(l.autor).to.include(\"Tzul\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Libro inexistente",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/libros/99999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "libros",
+            "99999"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Mensaje en español\", () => pm.expect(pm.response.json().detail).to.eql(\"Libro no encontrado.\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Agregar libro con ISBN inválido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/libros",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "libros"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"isbn\": \"9785260181592\", \"titulo\": \"Libro de prueba\", \"autor\": \"Autor\", \"anio\": 2020, \"ejemplares_totales\": 2}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenAdmin}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 422\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Lista de usuarios sin sesión",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Lista de usuarios como estudiante",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Acción exclusiva\", () => pm.expect(pm.response.json().detail).to.include(\"bibliotecario\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Flujo: solicitar préstamo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"libro_id\": {{libroId}}}"
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 201\", () => pm.response.to.have.status(201));",
+              "const p = pm.response.json();",
+              "pm.test(\"Estado SOLICITADO\", () => pm.expect(p.estado).to.eql(\"SOLICITADO\"));",
+              "pm.collectionVariables.set(\"prestamoId\", p.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Flujo: solicitar el mismo libro otra vez",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"libro_id\": {{libroId}}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Ya tiene ese libro\", () => pm.expect(pm.response.json().detail).to.include(\"vigente\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Flujo: entregar el libro",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos/{{prestamoId}}/entregar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos",
+            "{{prestamoId}}",
+            "entregar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenAdmin}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "const p = pm.response.json();",
+              "pm.test(\"Estado ACTIVO\", () => pm.expect(p.estado).to.eql(\"ACTIVO\"));",
+              "pm.test(\"Resta un ejemplar\", () => pm.expect(p.libro.ejemplares_disponibles).to.eql(Number(pm.collectionVariables.get(\"disponiblesAntes\")) - 1));",
+              "pm.test(\"Vence en 7 días\", () => { const d = (new Date(p.fecha_vencimiento) - new Date(p.fecha_entrega)) / 86400000; pm.expect(d).to.eql(7); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Flujo: renovar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos/{{prestamoId}}/renovar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos",
+            "{{prestamoId}}",
+            "renovar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Estado RENOVADO con 1 renovación\", () => { const p = pm.response.json(); pm.expect(p.estado).to.eql(\"RENOVADO\"); pm.expect(p.renovaciones).to.eql(1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Flujo: segunda renovación rechazada",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos/{{prestamoId}}/renovar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos",
+            "{{prestamoId}}",
+            "renovar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Máximo de renovaciones\", () => pm.expect(pm.response.json().detail).to.include(\"máximo\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Flujo: devolver",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos/{{prestamoId}}/devolver",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos",
+            "{{prestamoId}}",
+            "devolver"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenAdmin}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", () => pm.response.to.have.status(200));",
+              "const p = pm.response.json();",
+              "pm.test(\"Estado DEVUELTO sin multa\", () => { pm.expect(p.estado).to.eql(\"DEVUELTO\"); pm.expect(p.multa).to.eql(0); });",
+              "pm.test(\"Ejemplar regresa al catálogo\", () => pm.expect(p.libro.ejemplares_disponibles).to.eql(Number(pm.collectionVariables.get(\"disponiblesAntes\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Flujo: transición inválida DEVUELTO a CANCELADO",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/prestamos/{{prestamoId}}/cancelar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "prestamos",
+            "{{prestamoId}}",
+            "cancelar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenEst}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Indica la transición\", () => pm.expect(pm.response.json().detail).to.eql(\"No se puede pasar de DEVUELTO a CANCELADO.\"));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenEst",
+      "value": ""
+    },
+    {
+      "key": "usuarioId",
+      "value": ""
+    },
+    {
+      "key": "libroId",
+      "value": ""
+    },
+    {
+      "key": "disponiblesAntes",
+      "value": ""
+    },
+    {
+      "key": "prestamoId",
+      "value": ""
+    },
+    {
+      "key": "carne",
+      "value": ""
+    },
+    {
+      "key": "correo",
+      "value": ""
+    }
+  ]
+}

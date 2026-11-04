@@ -34,8 +34,10 @@ def test_hash_no_guarda_la_contrasena_en_texto_plano():
 
 
 def test_hash_usa_sal_aleatoria():
-    assert security.hashear_password("igual") != security.hashear_password("igual")
-
+    """La misma contraseña cifrada dos veces da resultados distintos (sal aleatoria)."""
+    primer_hash = security.hashear_password("igual")
+    segundo_hash = security.hashear_password("igual")
+    assert primer_hash != segundo_hash
 
 def test_verificar_password_correcta_e_incorrecta():
     guardado = security.hashear_password("Clave2026")

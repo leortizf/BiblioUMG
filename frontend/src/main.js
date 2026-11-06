@@ -12,6 +12,13 @@ import {
 } from "./validaciones.js";
 
 const app = document.getElementById("app");
+// Constantes para no repetir textos (rutas, rol y tipo de aviso).
+const ROL_BIBLIOTECARIO = "BIBLIOTECARIO";
+const RUTA_LOGIN = "#/login";
+const RUTA_CATALOGO = "#/catalogo";
+const RUTA_ADMIN_PRESTAMOS = "#/admin/prestamos";
+const ERROR = "error";
+
 
 // ------------------------------------------------------------ utilidades
 /** Escapa texto para mostrarlo en HTML sin riesgo de inyección. */
@@ -29,7 +36,7 @@ function avisar(texto, tipo = "ok") {
 }
 
 function esBibliotecario() {
-  return obtenerSesion()?.usuario.rol === "BIBLIOTECARIO";
+  return obtenerSesion()?.usuario.rol === ROL_BIBLIOTECARIO;
 }
 
 function sello(estado) {
@@ -44,7 +51,7 @@ async function ejecutar(accion, mensajeOk) {
     await refrescarUsuario();
     router();
   } catch (error) {
-    avisar(error.message, "error");
+    avisar(error.message, ERROR);
   }
 }
 
@@ -67,7 +74,7 @@ function dibujarMenu() {
     return;
   }
   const u = sesion.usuario;
-  const admin = u.rol === "BIBLIOTECARIO"
+  const admin = u.rol === ROL_BIBLIOTECARIO
     ? `<a href="#/admin/prestamos">Préstamos</a><a href="#/admin/libros">Libros</a><a href="#/admin/usuarios">Usuarios</a>`
     : `<a href="#/mis-prestamos">Mis préstamos</a>`;
   menu.innerHTML = `<a href="#/catalogo">Catálogo</a>${admin}
@@ -75,7 +82,7 @@ function dibujarMenu() {
     <button class="enlace" id="salir">Salir</button>`;
   document.getElementById("salir").onclick = () => {
     cerrarSesion();
-    location.hash = "#/login";
+    location.hash = RUTA_LOGIN;
   };
 }
 
@@ -97,9 +104,9 @@ function pantallaLogin() {
     try {
       const sesion = await api("POST", "/auth/login", datos);
       guardarSesion(sesion);
-      location.hash = sesion.usuario.rol === "BIBLIOTECARIO" ? "#/admin/prestamos" : "#/catalogo";
+      location.hash = sesion.usuario.rol === ROL_BIBLIOTECARIO ? RUTA_ADMIN_PRESTAMOS : RUTA_CATALOGO;
     } catch (error) {
-      avisar(error.message, "error");
+      avisar(error.message, ERROR);
     }
   };
 }
@@ -122,14 +129,14 @@ function pantallaRegistro() {
   document.getElementById("form-registro").onsubmit = async (ev) => {
     ev.preventDefault();
     const datos = Object.fromEntries(new FormData(ev.target));
-    if (!validarCarne(datos.carne)) return avisar("El carné debe tener el formato 0000-00-00000.", "error");
-    if (!validarPassword(datos.password)) return avisar("La contraseña debe tener entre 8 y 64 caracteres.", "error");
+    if (!validarCarne(datos.carne)) return avisar("El carné debe tener el formato 0000-00-00000.", ERROR);
+    if (!validarPassword(datos.password)) return avisar("La contraseña debe tener entre 8 y 64 caracteres.", ERROR);
     try {
       await api("POST", "/auth/registro", datos);
       avisar("Cuenta creada. Ya puedes iniciar sesión.");
-      location.hash = "#/login";
+      location.hash = RUTA_LOGIN;
     } catch (error) {
-      avisar(error.message, "error");
+      avisar(error.message, ERROR);
     }
   };
 }
@@ -267,7 +274,7 @@ async function pantallaAdminPrestamos() {
     return valor ? { fecha: valor } : {};
   };
   document.getElementById("filtro").onchange = (ev) => {
-    location.hash = ev.target.value ? `#/admin/prestamos?estado=${ev.target.value}` : "#/admin/prestamos";
+    location.hash = ev.target.value ? `#/admin/prestamos?estado=${ev.target.value}` : RUTA_ADMIN_PRESTAMOS;
   };
   app.querySelectorAll("[data-entregar]").forEach((b) => {
     b.onclick = () => ejecutar(() => api("POST", `/prestamos/${b.dataset.entregar}/entregar`, fecha()), "Libro entregado.");
@@ -359,7 +366,7 @@ async function pantallaAdminUsuarios() {
           <tr>
             <td>${esc(u.nombre)}<br><small>${esc(u.email)}</small></td>
             <td>${esc(u.carne)}</td>
-            <td>${u.rol === "BIBLIOTECARIO" ? "Bibliotecario" : u.tipo === "DOCENTE" ? "Docente" : "Estudiante"}</td>
+            <td>${u.rol === ROL_BIBLIOTECARIO ? "Bibliotecario" : u.tipo === "DOCENTE" ? "Docente" : "Estudiante"}</td>
             <td>${formatearQuetzales(u.multa_pendiente)}</td>
             <td>${u.bloqueado ? `<span class="sello sello-vencido">Bloqueado</span>` : "Activo"}</td>
             <td class="acciones">
@@ -386,24 +393,24 @@ async function pantallaAdminUsuarios() {
 
 // ------------------------------------------------------------ enrutador
 const RUTAS = {
-  "#/login": { pantalla: pantallaLogin },
+  RUTA_LOGIN: { pantalla: pantallaLogin },
   "#/registro": { pantalla: pantallaRegistro },
-  "#/catalogo": { pantalla: pantallaCatalogo },
+  RUTA_CATALOGO: { pantalla: pantallaCatalogo },
   "#/mis-prestamos": { pantalla: pantallaMisPrestamos, sesion: true },
-  "#/admin/prestamos": { pantalla: pantallaAdminPrestamos, admin: true },
+  RUTA_ADMIN_PRESTAMOS: { pantalla: pantallaAdminPrestamos, admin: true },
   "#/admin/libros": { pantalla: pantallaAdminLibros, admin: true },
   "#/admin/usuarios": { pantalla: pantallaAdminUsuarios, admin: true },
 };
 
 async function router() {
-  const ruta = (location.hash || "#/catalogo").split("?")[0];
-  const destino = RUTAS[ruta] || RUTAS["#/catalogo"];
+  const ruta = (location.hash || RUTA_CATALOGO).split("?")[0];
+  const destino = RUTAS[ruta] || RUTAS[RUTA_CATALOGO];
   if ((destino.sesion || destino.admin) && !obtenerSesion()) {
-    location.hash = "#/login";
+    location.hash = RUTA_LOGIN;
     return;
   }
   if (destino.admin && !esBibliotecario()) {
-    location.hash = "#/catalogo";
+    location.hash = RUTA_CATALOGO;
     return;
   }
   dibujarMenu();

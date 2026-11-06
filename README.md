@@ -78,7 +78,40 @@ Desde el octavo día de atraso la tarifa diaria se duplica; la multa de un prés
 
 ## Pruebas
 
-**Línea base:** el proyecto no incluye pruebas automatizadas (0 pruebas, 0 % de cobertura). Las pruebas del equipo se agregarán en la fase 2.
+**Línea base (registrada en la fase 1):** el proyecto de origen no incluía pruebas automatizadas (0 pruebas, 0 % de cobertura).
+
+**Pruebas unitarias del backend (pytest):**
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest --cov=app --cov-report=term
+```
+
+**Pruebas unitarias del frontend (Vitest):**
+
+```bash
+cd frontend
+npm install
+npm test            # solo pruebas
+npm run coverage    # pruebas con cobertura
+```
+
+**Pruebas de API (Postman / Newman),** con la API encendida en local:
+
+```bash
+npx newman run postman/BiblioUMG.postman_collection.json -e postman/local.postman_environment.json
+```
+
+La colección también se puede importar en Postman (Import → los dos archivos de la carpeta `postman`).
+
+**Prueba de carga (k6):** en GitHub, pestaña **Actions → Prueba de carga k6 → Run workflow**. El script está en `carga/carga.js`.
+
+## Pipeline CI/CD
+
+El archivo `.github/workflows/pipeline.yml` ejecuta en GitHub Actions, en orden: compilación, pruebas unitarias, análisis estático con SonarCloud (quality gate), pruebas de API con Newman y despliegue a Render. Se ejecuta en cada push y Pull Request hacia `dev`, `qa` y `main`; el despliegue solo ocurre en push a `qa` o `main`.
+
+Secretos requeridos en **Settings → Secrets and variables → Actions**: `SONAR_TOKEN`, `RENDER_DEPLOY_HOOK_API` y `RENDER_DEPLOY_HOOK_WEB`. La estrategia de ramas está en `docs/ESTRATEGIA_RAMAS.md`.
 
 ## Despliegue en la nube (capa gratuita)
 

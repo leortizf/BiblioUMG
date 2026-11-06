@@ -9,3 +9,10 @@ node_modules/
 frontend/dist/
 # Variables de entorno
 .env
+# Reportes de pruebas
+backend/coverage.xml
+backend/.coverage
+backend/resultados-pytest.xml
+frontend/coverage/
+carga/resultados*
+reporte-newman.html

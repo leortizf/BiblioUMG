@@ -5,6 +5,7 @@ services:
     name: biblioumg-api
     runtime: python
     plan: free
+    autoDeploy: false   # el despliegue lo dispara el pipeline
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -25,6 +26,7 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    autoDeploy: false
     envVars:
       - key: VITE_API_URL
         sync: false   # URL de la API, p. ej. https://biblioumg-api.onrender.com

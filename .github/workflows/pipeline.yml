@@ -1,0 +1,123 @@
+# Pipeline de integración y despliegue continuo de BiblioUMG (E13).
+# Orden: compilación → pruebas unitarias → análisis estático (quality gate) → pruebas de API → despliegue.
+name: Pipeline CI/CD
+
+on:
+  push:
+    branches: [dev, qa, main]
+  pull_request:
+    branches: [dev, qa, main]
+  workflow_dispatch:
+
+jobs:
+  compilacion:
+    name: 1. Compilación
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Backend - instalar dependencias y compilar
+        run: |
+          pip install -r backend/requirements.txt
+          python -m compileall -q backend/app
+      - name: Frontend - instalar y construir
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  pruebas-unitarias:
+    name: 2. Pruebas unitarias
+    needs: compilacion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Backend - pytest con cobertura
+        working-directory: backend
+        run: |
+          pip install -r requirements-dev.txt
+          pytest --cov=app --cov-report=xml:coverage.xml --cov-report=term --junitxml=resultados-pytest.xml
+      - name: Frontend - Vitest con cobertura
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run coverage
+      - name: Guardar reportes de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: |
+            backend/coverage.xml
+            backend/resultados-pytest.xml
+            frontend/coverage/lcov.info
+
+  analisis-estatico:
+    name: 3. Análisis estático (SonarCloud)
+    needs: pruebas-unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # Sonar necesita el historial completo
+      - uses: actions/download-artifact@v4
+        with: { name: cobertura }
+      - name: Análisis SonarCloud y verificación del quality gate
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  pruebas-api:
+    name: 4. Pruebas de API (Newman)
+    needs: analisis-estatico
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Levantar la API
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          nohup uvicorn app.main:app --port 8000 > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/salud && break; sleep 1; done
+      - name: Ejecutar la colección con Newman
+        run: |
+          npm install -g newman newman-reporter-htmlextra
+          newman run postman/BiblioUMG.postman_collection.json \
+            -e postman/local.postman_environment.json \
+            -r cli,htmlextra --reporter-htmlextra-export reporte-newman.html
+      - name: Guardar reporte de Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: reporte-api, path: reporte-newman.html }
+
+  despliegue:
+    name: 5. Despliegue
+    needs: pruebas-api
+    # Solo despliega en QA o PROD (main): tras un merge (push) o al lanzarlo a mano. Nunca en un Pull Request.
+    if: github.event_name != 'pull_request' && (github.ref_name == 'qa' || github.ref_name == 'main')
+    runs-on: ubuntu-latest
+    # Cada rama usa su ambiente de GitHub (Settings → Environments), con sus propios deploy hooks.
+    environment: ${{ github.ref_name == 'main' && 'produccion' || 'qa' }}
+    steps:
+      - name: Desplegar en Render
+        env:
+          HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+          HOOK_WEB: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
+        run: |
+          if [ -z "$HOOK_API" ] || [ -z "$HOOK_WEB" ]; then
+            echo "::warning::El ambiente ${{ github.ref_name }} no tiene deploy hooks configurados; no se desplegó."
+            exit 0
+          fi
+          curl -sf -X POST "$HOOK_API"
+          curl -sf -X POST "$HOOK_WEB"
+          echo "Despliegue solicitado en Render para el ambiente ${{ github.ref_name }}"

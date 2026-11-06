@@ -28,10 +28,10 @@ def actualizar_vencidos(db: Session) -> None:
     """Marca como VENCIDO todo préstamo activo/renovado cuya fecha ya pasó."""
     hoy = date.today()
     pendientes = db.scalars(select(Prestamo).where(
-        Prestamo.estado.in_(["ACTIVO", "RENOVADO"]),
+        Prestamo.estado.in_([reglas.ACTIVO, reglas.RENOVADO]),
         Prestamo.fecha_vencimiento < hoy)).all()
     for p in pendientes:
-        p.estado = "VENCIDO"
+        p.estado = reglas.VENCIDO
     if pendientes:
         db.commit()
 
@@ -82,7 +82,7 @@ def solicitar(datos: PrestamoIn, db: Session = Depends(get_db),
     if repetido:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ya tiene un préstamo vigente de este libro.")
 
-    prestamo = Prestamo(usuario_id=usuario.id, libro_id=libro.id, estado="SOLICITADO")
+    prestamo = Prestamo(usuario_id=usuario.id, libro_id=libro.id, estado=reglas.SOLICITADO)
     db.add(prestamo)
     db.commit()
     db.refresh(prestamo)
@@ -103,7 +103,7 @@ def cancelar(prestamo_id: int, db: Session = Depends(get_db),
     prestamo = obtener_prestamo(db, prestamo_id)
     if prestamo.usuario_id != usuario.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo puede cancelar sus propios préstamos.")
-    cambiar_estado(prestamo, "CANCELADO")
+    cambiar_estado(prestamo, reglas.CANCELADO)
     db.commit()
     db.refresh(prestamo)
     return prestamo
@@ -121,7 +121,7 @@ def renovar(prestamo_id: int, db: Session = Depends(get_db),
                                       usuario.multa_pendiente, usuario.bloqueado)
     if not ok:
         raise HTTPException(status.HTTP_409_CONFLICT, motivo)
-    cambiar_estado(prestamo, "RENOVADO")
+    cambiar_estado(prestamo, reglas.RENOVADO)
     prestamo.renovaciones += 1
     prestamo.fecha_vencimiento += timedelta(days=reglas.DIAS_PRESTAMO[usuario.tipo])
     db.commit()
@@ -150,7 +150,7 @@ def entregar(prestamo_id: int, datos: FechaOpcionalIn | None = None,
     validar_fecha(fecha)
     if prestamo.libro.ejemplares_disponibles <= 0:
         raise HTTPException(status.HTTP_409_CONFLICT, "No hay ejemplares disponibles para entregar.")
-    cambiar_estado(prestamo, "ACTIVO")
+    cambiar_estado(prestamo, reglas.ACTIVO)
     prestamo.fecha_entrega = fecha
     prestamo.fecha_vencimiento = fecha + timedelta(days=reglas.DIAS_PRESTAMO[prestamo.usuario.tipo])
     prestamo.libro.ejemplares_disponibles -= 1
@@ -164,7 +164,7 @@ def entregar(prestamo_id: int, datos: FechaOpcionalIn | None = None,
 def rechazar(prestamo_id: int, datos: RechazoIn, db: Session = Depends(get_db),
              _=Depends(solo_bibliotecario)):
     prestamo = obtener_prestamo(db, prestamo_id)
-    cambiar_estado(prestamo, "RECHAZADO")
+    cambiar_estado(prestamo, reglas.RECHAZADO)
     prestamo.motivo_rechazo = datos.motivo
     db.commit()
     db.refresh(prestamo)
@@ -182,7 +182,7 @@ def devolver(prestamo_id: int, datos: FechaOpcionalIn | None = None,
     if prestamo.fecha_entrega and fecha < prestamo.fecha_entrega:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
                             "La devolución no puede ser anterior a la entrega.")
-    cambiar_estado(prestamo, "DEVUELTO")
+    cambiar_estado(prestamo, reglas.DEVUELTO)
 
     prestamo.fecha_devolucion = fecha
     prestamo.dias_atraso = reglas.calcular_dias_atraso(prestamo.fecha_vencimiento, fecha)

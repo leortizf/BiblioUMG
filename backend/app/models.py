@@ -6,12 +6,14 @@ Tablas:
 - libros: catálogo de la biblioteca con la cantidad de ejemplares.
 - prestamos: cada préstamo de un libro a un usuario, con su estado.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+TABLA_PRESTAMOS = "prestamos"
 
 
 class Usuario(Base):
@@ -28,7 +30,7 @@ class Usuario(Base):
     rol: Mapped[str] = mapped_column(String(20), default="USUARIO")
     multa_pendiente: Mapped[float] = mapped_column(Float, default=0.0)
     bloqueado: Mapped[bool] = mapped_column(Boolean, default=False)
-    creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    creado_en: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     prestamos: Mapped[list["Prestamo"]] = relationship(back_populates="usuario")
 
@@ -48,7 +50,7 @@ class Libro(Base):
 
 
 class Prestamo(Base):
-    __tablename__ = "prestamos"
+    __tablename__ = TABLA_PRESTAMOS
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"))
@@ -56,7 +58,7 @@ class Prestamo(Base):
     # Estados posibles: SOLICITADO, ACTIVO, RENOVADO, VENCIDO,
     # DEVUELTO, RECHAZADO, CANCELADO (ver reglas.py)
     estado: Mapped[str] = mapped_column(String(20), default="SOLICITADO")
-    fecha_solicitud: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    fecha_solicitud: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     fecha_entrega: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_devolucion: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -65,5 +67,5 @@ class Prestamo(Base):
     multa: Mapped[float] = mapped_column(Float, default=0.0)
     motivo_rechazo: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
-    usuario: Mapped[Usuario] = relationship(back_populates="prestamos")
-    libro: Mapped[Libro] = relationship(back_populates="prestamos")
+    usuario: Mapped[Usuario] = relationship(back_populates=TABLA_PRESTAMOS)
+    libro: Mapped[Libro] = relationship(back_populates=TABLA_PRESTAMOS)

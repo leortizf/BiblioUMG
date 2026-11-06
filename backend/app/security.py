@@ -6,6 +6,7 @@ Seguridad: cifrado de contraseñas y tokens de sesión (JWT).
   petición (encabezado Authorization: Bearer <token>).
 """
 import hashlib
+import secrets
 import hmac
 import os
 from datetime import datetime, timedelta, timezone
@@ -18,7 +19,9 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Usuario
 
-SECRET_KEY = os.getenv("SECRET_KEY", "cambiar-esta-clave-en-produccion")
+# La clave se toma del ambiente (Render la genera). Si no existe, se crea una aleatoria
+# al iniciar: así no hay ningún secreto escrito en el código.
+SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 ALGORITMO = "HS256"
 HORAS_EXPIRACION = 8
 ITERACIONES = 100_000

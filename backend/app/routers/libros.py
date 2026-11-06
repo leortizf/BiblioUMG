@@ -14,6 +14,9 @@ from ..security import solo_bibliotecario
 
 router = APIRouter(prefix="/libros", tags=["Libros"])
 
+RUTA_LIBRO = "/{libro_id}"
+NO_ENCONTRADO = "Libro no encontrado."
+
 
 @router.get("", response_model=list[LibroOut])
 def buscar_libros(q: str = "", db: Session = Depends(get_db)):
@@ -27,11 +30,11 @@ def buscar_libros(q: str = "", db: Session = Depends(get_db)):
     return db.scalars(consulta).all()
 
 
-@router.get("/{libro_id}", response_model=LibroOut)
+@router.get(RUTA_LIBRO, response_model=LibroOut)
 def obtener_libro(libro_id: int, db: Session = Depends(get_db)):
     libro = db.get(Libro, libro_id)
     if libro is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Libro no encontrado.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO)
     return libro
 
 
@@ -46,12 +49,12 @@ def crear_libro(datos: LibroIn, db: Session = Depends(get_db), _=Depends(solo_bi
     return libro
 
 
-@router.put("/{libro_id}", response_model=LibroOut)
+@router.put(RUTA_LIBRO, response_model=LibroOut)
 def editar_libro(libro_id: int, datos: LibroIn, db: Session = Depends(get_db),
                  _=Depends(solo_bibliotecario)):
     libro = db.get(Libro, libro_id)
     if libro is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Libro no encontrado.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO)
     otro = db.scalar(select(Libro).where(Libro.isbn == datos.isbn, Libro.id != libro_id))
     if otro:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe otro libro con ese ISBN.")
@@ -70,11 +73,11 @@ def editar_libro(libro_id: int, datos: LibroIn, db: Session = Depends(get_db),
     return libro
 
 
-@router.delete("/{libro_id}", status_code=204)
+@router.delete(RUTA_LIBRO, status_code=204)
 def eliminar_libro(libro_id: int, db: Session = Depends(get_db), _=Depends(solo_bibliotecario)):
     libro = db.get(Libro, libro_id)
     if libro is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Libro no encontrado.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO)
     vigentes = db.scalar(select(func.count()).select_from(Prestamo).where(
         Prestamo.libro_id == libro_id, Prestamo.estado.in_(reglas.ESTADOS_VIGENTES)))
     if vigentes:

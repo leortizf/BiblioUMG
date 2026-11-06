@@ -14,10 +14,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./biblioteca.db")
 
 # Neon entrega URLs que empiezan con "postgres://" o "postgresql://".
 # SQLAlchemy necesita saber que usaremos el controlador "psycopg".
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+CONTROLADOR = "postgresql+psycopg://"
+for prefijo in ("postgres://", "postgresql://"):
+    if DATABASE_URL.startswith(prefijo):
+        DATABASE_URL = DATABASE_URL.replace(prefijo, CONTROLADOR, 1)
+        break
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 

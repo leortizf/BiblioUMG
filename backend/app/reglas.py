@@ -19,10 +19,21 @@ Resumen de reglas:
 import re
 from datetime import date
 
-LIMITE_PRESTAMOS = {"ESTUDIANTE": 3, "DOCENTE": 5}
-DIAS_PRESTAMO = {"ESTUDIANTE": 7, "DOCENTE": 14}
-MAX_RENOVACIONES = {"ESTUDIANTE": 1, "DOCENTE": 2}
-TARIFA_DIARIA = {"ESTUDIANTE": 2.00, "DOCENTE": 1.00}
+# Tipos de usuario y estados del préstamo (constantes para no repetir textos).
+ESTUDIANTE = "ESTUDIANTE"
+DOCENTE = "DOCENTE"
+SOLICITADO = "SOLICITADO"
+ACTIVO = "ACTIVO"
+RENOVADO = "RENOVADO"
+VENCIDO = "VENCIDO"
+DEVUELTO = "DEVUELTO"
+RECHAZADO = "RECHAZADO"
+CANCELADO = "CANCELADO"
+
+LIMITE_PRESTAMOS = {ESTUDIANTE: 3, DOCENTE: 5}
+DIAS_PRESTAMO = {ESTUDIANTE: 7, DOCENTE: 14}
+MAX_RENOVACIONES = {ESTUDIANTE: 1, DOCENTE: 2}
+TARIFA_DIARIA = {ESTUDIANTE: 2.00, DOCENTE: 1.00}
 TOPE_MULTA = 50.00
 DIAS_TARIFA_NORMAL = 7
 DIAS_PARA_BLOQUEO = 30
@@ -32,17 +43,17 @@ MAX_EJEMPLARES = 20
 ANIO_MINIMO = 1450
 
 # Estados que cuentan como "préstamo vigente" (ocupan cupo del usuario)
-ESTADOS_VIGENTES = {"SOLICITADO", "ACTIVO", "RENOVADO", "VENCIDO"}
+ESTADOS_VIGENTES = {SOLICITADO, ACTIVO, RENOVADO, VENCIDO}
 
 # Máquina de estados: desde cada estado, a cuáles se puede pasar.
 TRANSICIONES = {
-    "SOLICITADO": {"ACTIVO", "RECHAZADO", "CANCELADO"},
-    "ACTIVO": {"RENOVADO", "VENCIDO", "DEVUELTO"},
-    "RENOVADO": {"RENOVADO", "VENCIDO", "DEVUELTO"},
-    "VENCIDO": {"DEVUELTO"},
-    "DEVUELTO": set(),   # estado final
-    "RECHAZADO": set(),  # estado final
-    "CANCELADO": set(),  # estado final
+    SOLICITADO: {ACTIVO, RECHAZADO, CANCELADO},
+    ACTIVO: {RENOVADO, VENCIDO, DEVUELTO},
+    RENOVADO: {RENOVADO, VENCIDO, DEVUELTO},
+    VENCIDO: {DEVUELTO},
+    DEVUELTO: set(),   # estado final
+    RECHAZADO: set(),  # estado final
+    CANCELADO: set(),  # estado final
 }
 
 
@@ -92,7 +103,7 @@ def puede_solicitar(tipo_usuario: str, prestamos_vigentes: int,
 def puede_renovar(tipo_usuario: str, estado: str, renovaciones: int,
                   multa_pendiente: float, bloqueado: bool) -> tuple[bool, str]:
     """Decide si un préstamo puede renovarse."""
-    if estado not in {"ACTIVO", "RENOVADO"}:
+    if estado not in {ACTIVO, RENOVADO}:
         return False, "Solo se pueden renovar préstamos activos o renovados."
     if bloqueado:
         return False, "El usuario está bloqueado por atraso grave."

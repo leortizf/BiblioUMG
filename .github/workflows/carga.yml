@@ -1,0 +1,21 @@
+# Prueba de carga (E14) sobre el ambiente desplegado. Se ejecuta manualmente desde Actions.
+name: Prueba de carga k6
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL de la API desplegada
+        default: https://biblioumg-api.onrender.com
+
+jobs:
+  carga:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Ejecutar escenario 0 → 50 usuarios virtuales
+        run: k6 run -e BASE_URL=${{ inputs.url }} carga/carga.js
+        continue-on-error: true   # el reporte se guarda aunque algún umbral (RNF) no se cumpla
+      - uses: actions/upload-artifact@v4
+        with: { name: resultados-carga, path: carga/resultados* }
